@@ -1,0 +1,15 @@
+RESTFUL API - SUPPORTS JSON DATA
+
+WE DEAL WITH USERS
+
+GET /users - lists all the users
+
+GET /users/1 - Get the user with ID 1
+GET /users/2 - Get the user with ID 2
+
+POST /users - Creates new user
+
+PATCH /user/1 - Edit the user with ID 1
+
+DELETE /users/1 - Delete the User with ID 1
+

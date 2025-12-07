@@ -1,8 +1,10 @@
+//Entry point of API server
+
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
 
-const pool = require("./config/db");
+const pool = require("./config/database");
 
 const app = express();
 app.use(cors()); // Allow Flutter app to connect
@@ -25,5 +27,5 @@ app.get("/api/db-test", async (req, res) => {
 
 // Start server
 app.listen(process.env.PORT, () => {
-    console.log(`Server running on port ${process.env.PORT}`);
+    console.log(`Server Started at PORT ${process.env.PORT}`);
 });
