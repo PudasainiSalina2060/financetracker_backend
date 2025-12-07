@@ -12,3 +12,4 @@ const pool = new Pool({
 
 pool.connect().then(()=> console.log("connected"))
 
+module.exports = pool;
