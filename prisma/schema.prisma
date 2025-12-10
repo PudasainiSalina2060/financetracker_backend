@@ -1,0 +1,328 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+//----------ENUMS----------
+
+enum AccountType {
+  CASH
+  BANK
+  CARD
+}
+
+enum CategoryType {
+  INCOME
+  EXPENSE
+}
+
+enum TransactionType {
+  income
+  expense
+}
+
+enum Frequency {
+  daily
+  weekly
+  monthly
+}
+
+enum BudgetPeriod {
+  daily
+  weekly
+  monthly
+}
+
+enum NotificationType {
+  income
+  expense
+  budget_near
+  budget_exceeded
+  group_expense
+  settlement
+  sync
+  invite
+}
+
+enum SettlementMethod {
+  cash
+  bank
+  card
+}
+
+enum SyncOperation {
+  insert
+  update
+  delete
+}
+
+//--------------TABLES-----------
+
+//----USERS TABLE-----
+model User {
+  user_id        Int             @id @default(autoincrement()) // PK
+  name           String?                               
+  email          String          @unique               
+  phone          String?         @unique               
+  password_hash  String?                               
+  google_id      String?                               
+  created_at     DateTime        @default(now())       
+
+// Relations
+  sessions       UserSession[]                             // JWT sessions for login
+  accounts       Account[]                                 // User accounts (Cash, Bank, Card)
+  categories     Category[]                                // User defined categories
+  transactions   Transaction[]                             // Users income or expense
+  recurring      RecurringTransaction[]                    // Recurring transactions
+  budgets        Budget[]                                  // Budget limits
+  groups_created Group[]                                   // Groups created by user
+  group_members  GroupMember[]                             // Membership in groups
+  contacts       UserContact[]                              // Synced phone contacts
+  notifications  Notification[]                            
+  sync_logs      SyncLog[]                                  // Offline sync logs
+  settings       UserSettings?                               // User preferences/settings
+  external_added ExternalMember[]                           // External members added
+  errors         ErrorLog[]                                 // Error logs for debugging
+}
+
+//-----USER SESSIONS (JWT)------
+model UserSession {
+  session_id     Int       @id @default(autoincrement())
+  user_id        Int
+  refresh_token  String
+  expires_at     DateTime
+
+  // Relation to user
+  user User @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+}
+
+//--------ACCOUNTS-------
+model Account {
+  account_id      Int          @id @default(autoincrement())
+  user_id         Int
+  type            AccountType    //Cah, bank.Card
+  name            String       // Name of account (Cash, Bank)
+  initial_balance Decimal       @db.Decimal(10,2) // Using Decimal for money
+  current_balance Decimal       @db.Decimal(10,2)
+  created_at      DateTime     @default(now())
+
+  user        User           @relation(fields: [user_id], references: [user_id])
+  transactions Transaction[]   // Transactions linked to this account
+}
+
+//------CATEGORIES--------
+model Category {
+  category_id Int          @id @default(autoincrement())
+  user_id     Int?         // Null for default categories
+  name        String       // Category name (Food, Rent, Salary)
+  type        CategoryType // INCOME or EXPENSE
+  color       String?      // UI color
+  icon        String?      // Optional icon for visualization
+
+  user        User?         @relation(fields: [user_id], references: [user_id])
+  transactions Transaction[]
+  budgets      Budget[]
+}
+
+//---------TRANSACTIONS (Income/Expense)---------
+model Transaction {
+  transaction_id Int              @id @default(autoincrement())
+  user_id        Int
+  account_id     Int
+  category_id    Int
+  type           TransactionType
+  amount         Decimal          @db.Decimal(10,2) // Accurate money type
+  notes          String?
+  date           DateTime
+  is_recurring   Boolean          @default(false)
+  created_at     DateTime         @default(now())
+  updated_at     DateTime         @updatedAt
+
+  user     User     @relation(fields: [user_id], references: [user_id])
+  account  Account  @relation(fields: [account_id], references: [account_id])
+  category Category @relation(fields: [category_id], references: [category_id])
+  recurring RecurringTransaction[]
+}
+
+//----------RECURRING TRANSACTIONS---------
+model RecurringTransaction {
+  recurring_id    Int        @id @default(autoincrement())
+  user_id         Int
+  transaction_id  Int
+  frequency       Frequency
+  next_run_date   DateTime
+
+  transaction Transaction @relation(fields: [transaction_id], references: [transaction_id])
+  user         User        @relation(fields: [user_id], references: [user_id])
+}
+
+//------BUDGETS----------
+model Budget {
+  budget_id      Int           @id @default(autoincrement())
+  user_id        Int
+  category_id    Int
+  limit_amount   Decimal       @db.Decimal(10,2)
+  period         BudgetPeriod
+  start_date     DateTime
+  alert_sent_80  Boolean       @default(false)
+  alert_sent_100 Boolean       @default(false)
+  created_at     DateTime      @default(now())
+
+  user     User     @relation(fields: [user_id], references: [user_id])
+  category Category @relation(fields: [category_id], references: [category_id])
+}
+
+//------SYNC LOGS (Offline / Online Sync)------------
+model SyncLog {
+  sync_id     Int           @id @default(autoincrement())
+  user_id     Int
+  table_name  String
+  record_id   Int
+  last_updated DateTime
+  operation   SyncOperation
+  is_synced   Boolean       @default(false)
+
+  user User @relation(fields: [user_id], references: [user_id])
+}
+
+//---------// GROUP EXPENSE / SPLITWISE-LIKE-------
+model Group {
+  group_id   Int          @id @default(autoincrement())
+  user_id    Int
+  name       String
+  created_at DateTime     @default(now())
+
+  created_by   User          @relation(fields: [user_id], references: [user_id])
+  members      GroupMember[]
+  expenses     GroupExpense[]
+  settlements  Settlement[]
+}
+
+//----------GROUP MEMBERS-------------
+model GroupMember {
+  member_id          Int             @id @default(autoincrement())
+  group_id           Int
+  user_id            Int?
+  external_contact_id Int?
+  joined_at          DateTime        @default(now())
+
+  group    Group           @relation(fields: [group_id], references: [group_id])
+  user     User?           @relation(fields: [user_id], references: [user_id])
+  external ExternalMember? @relation(fields: [external_contact_id], references: [external_id])
+  expenses GroupExpense[]  @relation("PaidBy")
+  shares   SplitShare[]
+
+  settlements_from Settlement[] @relation("FromMember")
+  settlements_to   Settlement[] @relation("ToMember")
+
+}
+
+//-----GROUP EXPENSES-----
+model GroupExpense {
+  group_expense_id Int        @id @default(autoincrement())
+  group_id         Int
+  paid_by_member_id Int
+  amount           Decimal    @db.Decimal(10,2)
+  note             String?
+  date             DateTime
+
+  group    Group       @relation(fields: [group_id], references: [group_id])
+  paid_by  GroupMember @relation("PaidBy", fields: [paid_by_member_id], references: [member_id])
+  shares   SplitShare[]
+}
+
+//----SPLIT SHARES (Per Member)----------
+model SplitShare {
+  share_id          Int         @id @default(autoincrement())
+  group_expense_id  Int
+  member_id         Int
+  amount            Decimal     @db.Decimal(10,2)
+  is_settled        Boolean     @default(false)
+
+  expense GroupExpense @relation(fields: [group_expense_id], references: [group_expense_id])
+  member  GroupMember  @relation(fields: [member_id], references: [member_id])
+}
+
+//---SETTLEMENTS (Payment of shares)------------
+model Settlement {
+  settlement_id Int             @id @default(autoincrement())
+  group_id      Int
+  from_member_id Int
+  to_member_id   Int
+  amount        Decimal         @db.Decimal(10,2)
+  method        SettlementMethod
+  date          DateTime
+
+  group   Group       @relation(fields: [group_id], references: [group_id])
+  from    GroupMember @relation("FromMember", fields: [from_member_id], references: [member_id])
+  to      GroupMember @relation("ToMember", fields: [to_member_id], references: [member_id])
+}
+
+//--------EXTERNAL MEMBERS (Unregistered users)------------
+model ExternalMember {
+  external_id        Int     @id @default(autoincrement())
+  name               String
+  phone              String?
+  added_by_user_id   Int
+
+  added_by      User          @relation(fields: [added_by_user_id], references: [user_id])
+  group_members GroupMember[]
+}
+
+//-----USER CONTACTS (Phone Integration)---
+model UserContact {
+  contact_id Int      @id @default(autoincrement())
+  user_id    Int
+  name       String
+  phone      String?
+  created_at DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [user_id])
+}
+
+//--------NOTIFICATION--------
+model Notification {
+  notification_id Int              @id @default(autoincrement())
+  user_id         Int
+  type            NotificationType
+  message         String
+  icon            String?
+  timestamp       DateTime         @default(now())
+  is_read         Boolean          @default(false)
+
+  user User @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+}
+
+//---------SETTINGS/PREFERENCES----------
+model UserSettings {
+  setting_id            Int       @id @default(autoincrement())
+  user_id               Int       @unique
+  currency              String    @default("NPR")
+  notifications_enabled Boolean   @default(true)
+  created_at            DateTime  @default(now())
+
+  user User @relation(fields: [user_id], references: [user_id])
+}
+
+
+//---ERROR LOGS (Debugging)---
+model ErrorLog {
+  error_id  Int      @id @default(autoincrement())
+  user_id   Int?
+  module    String
+  message   String
+  created_at DateTime @default(now())
+
+  user User? @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+}
