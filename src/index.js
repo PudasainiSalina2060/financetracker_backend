@@ -1,31 +1,30 @@
-//Entry point of API server
+// //Entry point of API server
 
-const express = require("express");
-const cors = require("cors");
-require("dotenv").config();
+import "dotenv/config";
 
-const pool = require("./config/database");
+import express from "express";
+import { dbconnection } from "./database/dbconnection.js";
+import router from "./route/routes.js";
 
 const app = express();
-app.use(cors()); // Allow Flutter app to connect
-app.use(express.json()); // Parse JSON body
 
-// TEST API — Checking if the server working
-app.get("/api/test", (req, res) => {
-    res.json({ message: "Backend is running successfully!" });
+// Define a route for GET requests to the root URL
+app.get('/', (req, res) => {
+  res.send('Hello Smart Budget from Express');
 });
 
-// TEST DATABASE CONNECTION
-app.get("/api/db-test", async (req, res) => {
-    try {
-        const result = await pool.query("SELECT NOW()");
-        res.json({ time: result.rows[0] });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
 
-// Start server
+//adding middleware
+app.use(express.json());
+
+app.use(express.urlencoded({ extended: true }));
+
+//routes
+app.use("/api", router);
+
+// Database connection globally
+await dbconnection();
+
 app.listen(process.env.PORT, () => {
-    console.log(`Server Started at PORT ${process.env.PORT}`);
-});
+    console.log(`Server is running at PORT ${process.env.PORT}`);
+ });

@@ -1,0 +1,180 @@
+import { generateAccessToken, generateRefreshToken } from "../auth/auth.js";
+import prisma from "../database/dbconnection.js";
+import bcrypt from "bcryptjs";
+
+export const registerController = async (req, res) => {
+  //return res.json("smartbudget");
+  try {
+    const { name, email, password } = req.body;
+
+    console.log("Register request body:", req.body);
+
+    // validation
+    if (!name || !email || !password) {
+      return res.status(400).json({
+        message: "Name, email and password are required",
+      });
+    }
+
+    // check existing user
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (existingUser) {
+      return res.status(409).json({
+        message: "User already exists",
+      });
+    }
+
+    // hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+    console.log("Hashed password:", hashedPassword);
+
+    // create user
+    const user = await prisma.user.create({
+      data: {
+        name,
+        email,
+        password_hash: hashedPassword,
+      },
+    });
+
+    return res.status(201).json({
+      message: "User registered successfully",
+      user,
+    });
+  } catch (error) {
+    console.error("Register error:", error);
+
+    return res.status(500).json({
+      message: "Register API failed",
+      error: error.message,
+    });
+  }
+};
+
+export const loginController = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    console.log("Login request body:", req.body);
+
+    // validation
+    if (!email || !password) {
+      return res.status(400).json({
+        message: "Email and password are required",
+      });
+    }
+
+    // find user by email
+    const user = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      return res.status(401).json({
+        message: "Invalid credentials",
+      });
+    }
+
+    // compare password
+    const isValid = await bcrypt.compare(
+      password,
+      user.password_hash
+    );
+    console.log("Password valid:", isValid);
+
+    if (!isValid) {
+      return res.status(401).json({
+        message: "Invalid credentials",
+      });
+    }
+
+    const accessToken = await generateAccessToken(user);
+    const refreshToken = await generateRefreshToken(user);
+
+    //Saving the refresh token in UserSession Table
+     await prisma.userSession.create({
+      data: {
+        user_id: user.user_id,
+        refresh_token: refreshToken,
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+    });
+    
+    // success
+    return res.status(200).json({
+      message: "Login successful",
+      user:{
+        user_id: user.user_id,
+        name: user.name,
+        email: user.email,
+      },
+      accessToken,
+      refreshToken,
+    });
+    
+
+  } catch (error) {
+    console.error("Login error:", error);
+    return res.status(500).json({
+      message: "Internal server error",
+    });
+  }
+};
+
+export const refreshController = async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+
+    // Validate input
+    if (!refreshToken) {
+      return res.status(401).json({
+        message: "Refresh token is required",
+      });
+    }
+
+    // Verify refresh token
+    const decoded = jwt.verify(refreshToken, "cdef");
+
+    // Check refresh token in DB
+    const session = await prisma.userSession.findFirst({
+      where: {
+        refresh_token: refreshToken,
+        user_id: decoded.userId,
+      },
+    });
+
+    if (!session) {
+      return res.status(403).json({
+        message: "Invalid refresh token",
+      });
+    }
+
+    // Check expiry
+    if (new Date() > session.expires_at) {
+      return res.status(403).json({
+        message: "Refresh token expired",
+      });
+    }
+
+    //  Get user
+    const user = await prisma.user.findUnique({
+      where: { user_id: decoded.userId },
+    });
+
+    // Generate new access token
+    const newAccessToken = await generateAccessToken(user);
+
+    return res.status(200).json({
+      accessToken: newAccessToken,
+    });
+
+  } catch (error) {
+    console.error("Refresh token error:", error);
+
+    return res.status(403).json({
+      message: "Invalid or expired refresh token",
+    });
+  }
+};
