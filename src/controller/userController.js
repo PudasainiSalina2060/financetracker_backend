@@ -1,6 +1,7 @@
 import { generateAccessToken, generateRefreshToken } from "../auth/auth.js";
 import prisma from "../database/dbconnection.js";
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 
 export const registerController = async (req, res) => {
   //return res.json("smartbudget");
@@ -126,6 +127,7 @@ export const loginController = async (req, res) => {
 export const refreshController = async (req, res) => {
   try {
     const { refreshToken } = req.body;
+    console.log("REQ BODY:", req.body);
 
     // Validate input
     if (!refreshToken) {
@@ -169,6 +171,7 @@ export const refreshController = async (req, res) => {
     return res.status(200).json({
       accessToken: newAccessToken,
     });
+    
 
   } catch (error) {
     console.error("Refresh token error:", error);
@@ -176,5 +179,75 @@ export const refreshController = async (req, res) => {
     return res.status(403).json({
       message: "Invalid or expired refresh token",
     });
+  }
+  
+};
+
+export const logoutController = async(req,res) => {
+//simply clearing token from database - deleting refresh token
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      return res.status(400).json({
+        message: "Refresh token is required",
+      });
+    }
+
+    // Delete refresh token from DB
+    const deleted = await prisma.userSession.deleteMany({
+      where: {
+        refresh_token: refreshToken,
+      },
+    });
+
+    if (deleted.count === 0) {
+      return res.status(404).json({
+        message: "Refresh token not found or already logged out",
+      });
+    }
+
+    return res.status(200).json({
+      message: "Logout successfully",
+    });
+  } catch (error) {
+    console.error("Logout error:", error);
+
+    return res.status(500).json({
+      message: "Logout failed",
+    });
+  }
+};
+
+export const profileController = async(req,res) => {
+    //return res.json("Smart Budget Dashboard");
+    try {
+    const userId = req.user.userId; // assuming middleware decoded accessToken
+    const user = await prisma.user.findUnique({
+      where: { user_id: userId },
+      select: { user_id: true, name: true, email: true, phone: true, created_at: true },
+    });
+    return res.status(200).json({ user });
+  } catch (error) {
+    console.error("Get profile error:", error);
+    return res.status(500).json({ message: "Failed to fetch profile" });
+  }
+};
+
+export const updateProfileController = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { name, phone } = req.body;
+
+    const updatedUser = await prisma.user.update({
+      where: { user_id: userId },
+      data: { name, phone },
+      select: { user_id: true, name: true, email: true, phone: true },
+    });
+
+    return res.status(200).json({ message: "Profile updated", user: updatedUser });
+  } catch (error) {
+    console.error("Update profile error:", error);
+    return res.status(500).json({ message: "Failed to update profile" });
   }
 };
