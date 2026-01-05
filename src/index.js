@@ -8,14 +8,13 @@ import router from "./route/routes.js";
 
 const app = express();
 
+//body parser middleware
+app.use(express.json());
+
 // Define a route for GET requests to the root URL
 app.get('/', (req, res) => {
   res.send('Hello Smart Budget from Express');
 });
-
-
-//adding middleware
-app.use(express.json());
 
 app.use(express.urlencoded({ extended: true }));
 
