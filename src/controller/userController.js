@@ -2,6 +2,7 @@ import { generateAccessToken, generateRefreshToken } from "../auth/auth.js";
 import prisma from "../database/dbconnection.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 
 export const registerController = async (req, res) => {
   //return res.json("smartbudget");
@@ -251,3 +252,64 @@ export const updateProfileController = async (req, res) => {
     return res.status(500).json({ message: "Failed to update profile" });
   }
 };
+
+export const forgotPassword = async (req, res) => {
+  //get the user bases on the posted email
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        message: "Email is required",
+      });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email: email },
+    });
+
+    //checking if user exist in database or not
+    if (!user) {
+      return res.status(404).json({
+        message: "Could not find user with such email",
+      });
+    }
+
+    // Prevent reset for Google users
+    if (!user.password_hash) {
+      return res.status(400).json({
+        message: "Password reset not available for social login",
+      });
+    }
+
+    //generate random reset token
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    const hashedToken = crypto
+      .createHash("sha256")
+      .update(rawToken)
+      .digest("hex");
+
+    //storing tore hashed token with expiry
+    await prisma.passwordResetToken.create({
+      data: {
+        user_id: user.user_id,
+        token_hash: hashedToken,
+        expires_at: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
+      },
+    });
+
+    // send email (raw token only)
+    await sendResetPasswordEmail(user.email, rawToken);
+
+    //respond success
+    return res.status(200).json({
+      message: "Password reset link sent to your email",
+    });
+  } catch (error) {
+    console.error("Forgot password error:", error);
+    return res.status(500).json({
+      message: "Something went wrong",
+    });
+  }
+};
+
