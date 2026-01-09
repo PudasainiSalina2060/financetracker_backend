@@ -78,7 +78,8 @@ model User {
   phone          String?         @unique               
   password_hash  String?                               
   google_id      String?                               
-  created_at     DateTime        @default(now())       
+  created_at     DateTime        @default(now())  
+
 
 // Relations
   sessions       UserSession[]                             // JWT sessions for login
@@ -95,6 +96,7 @@ model User {
   settings       UserSettings?                               // User preferences/settings
   external_added ExternalMember[]                           // External members added
   errors         ErrorLog[]                                 // Error logs for debugging
+  password_resets PasswordResetToken[]
 }
 
 //-----USER SESSIONS (JWT)------
@@ -326,4 +328,16 @@ model ErrorLog {
   created_at DateTime @default(now())
 
   user User? @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+}
+
+//-----PASSWORD RESET TOKENS-----
+model PasswordResetToken {
+  reset_id    Int      @id @default(autoincrement())
+  user_id     Int
+  token_hash  String
+  expires_at  DateTime
+  used        Boolean  @default(false)
+  created_at  DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
 }
