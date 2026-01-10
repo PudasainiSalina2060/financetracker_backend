@@ -2,7 +2,7 @@ import { generateAccessToken, generateRefreshToken } from "../auth/auth.js";
 import prisma from "../database/dbconnection.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import crypto from "crypto";
+import { createResetPasswordToken } from "../auth/passwordReset.js";
 
 export const registerController = async (req, res) => {
   //return res.json("smartbudget");
@@ -254,6 +254,7 @@ export const updateProfileController = async (req, res) => {
 };
 
 export const forgotPassword = async (req, res) => {
+
   //get the user bases on the posted email
   try {
     const { email } = req.body;
@@ -281,25 +282,13 @@ export const forgotPassword = async (req, res) => {
         message: "Password reset not available for social login",
       });
     }
-
-    //generate random reset token
-    const rawToken = crypto.randomBytes(32).toString("hex");
-    const hashedToken = crypto
-      .createHash("sha256")
-      .update(rawToken)
-      .digest("hex");
-
-    //storing tore hashed token with expiry
-    await prisma.passwordResetToken.create({
-      data: {
-        user_id: user.user_id,
-        token_hash: hashedToken,
-        expires_at: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
-      },
-    });
+    // use auth/passwordReset.js to handle token
+    const rawToken = await createResetPasswordToken(user.user_id);
+    
+    console.log(`Password reset link (for testing): ${rawToken}`);
 
     // send email (raw token only)
-    await sendResetPasswordEmail(user.email, rawToken);
+    //await sendResetPasswordEmail(user.email, rawToken);
 
     //respond success
     return res.status(200).json({

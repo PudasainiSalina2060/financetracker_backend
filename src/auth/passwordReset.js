@@ -1,6 +1,8 @@
-const crypto  = require('crypto');
+import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import prisma from "../database/dbconnection.js";
+
+console.log("Prisma models:", Object.keys(prisma));
 
 export const createResetPasswordToken = async (userId) => {
   //1.Generate raw token (sent to email)
