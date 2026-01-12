@@ -302,3 +302,53 @@ export const forgotPassword = async (req, res) => {
   }
 };
 
+// Handles password reset using valid token
+export const resetPassword = async (req, res) => {
+  const { userId, token, newPassword } = req.body;
+
+  // Get unused and non-expired tokens for user
+  const records = await prisma.passwordResetToken.findMany({
+    where: {
+      user_id: userId,
+      used: false,
+      expires_at: { gt: new Date() },
+    },
+  });
+
+  let validRecord = null;
+
+  // Match provided token with stored hashed token
+  for (const record of records) {
+    const match = await bcrypt.compare(token, record.token_hash);
+    if (match) {
+      validRecord = record;
+      break;
+    }
+  }
+
+  // Reject if token is invalid or expired
+  if (!validRecord) {
+    return res.status(400).json({
+      message: "Invalid or expired reset token",
+    });
+  }
+
+  // Hash new password
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+  // Update user password
+  await prisma.user.update({
+    where: { user_id: userId },
+    data: { password_hash: hashedPassword },
+  });
+
+  // Mark token as used
+  await prisma.passwordResetToken.update({
+    where: { reset_id: validRecord.reset_id },
+    data: { used: true },
+  });
+
+  return res.status(200).json({
+    message: "Password reset successful",
+  });
+};
