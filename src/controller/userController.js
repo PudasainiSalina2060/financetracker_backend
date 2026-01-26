@@ -3,6 +3,9 @@ import prisma from "../database/dbconnection.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { createResetPasswordToken } from "../auth/passwordReset.js";
+import { sendResetPasswordEmail } from "../services/emailService.js";
+import { resetPasswordTemplate } from "../templates/resetPasswordEmail.js";
+
 
 export const registerController = async (req, res) => {
   //return res.json("smartbudget");
@@ -284,15 +287,23 @@ export const forgotPassword = async (req, res) => {
     }
     // use auth/passwordReset.js to handle token
     const rawToken = await createResetPasswordToken(user.user_id);
-    
     console.log(`Password reset link (for testing): ${rawToken}`);
 
+    const resetLink = `${process.env.APP_URL}/reset-password?token=${rawToken}`;
+
     // send email (raw token only)
-    //await sendResetPasswordEmail(user.email, rawToken);
+    await sendResetPasswordEmail({
+      to: user.email,
+      subject: "Password Reset",
+      html: resetPasswordTemplate({
+        name: user.name,
+        resetLink,
+      }),
+    });
 
     //respond success
     return res.status(200).json({
-      message: "Password reset link sent to your email",
+      message: "Password reset email sent",
     });
   } catch (error) {
     console.error("Forgot password error:", error);
