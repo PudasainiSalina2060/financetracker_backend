@@ -2,7 +2,7 @@ import { Router } from "express";
 import authMiddleware from "../middleware/authenticate.js";
 import { registerController, loginController, refreshController, logoutController,profileController,updateProfileController, forgotPassword,resetPassword} from "../controller/userController.js";
 import googleAuthRoutes from "./googleAuth.route.js";
-
+import accountRoutes from "./account.route.js";
 
 const router = Router();
 
@@ -40,10 +40,13 @@ Without this middleware, req.user would be undefined and  the controllers would 
  */
 router.get("/profile", authMiddleware,profileController);
 router.put("/updateprofile", authMiddleware, updateProfileController);
-router.use("/auth", googleAuthRoutes);
 
 router.post("/forgotpassword", forgotPassword);
 router.post("/resetpassword", resetPassword);
+
+//Modular Routes
+router.use("/auth", googleAuthRoutes);
+router.use("/accounts", accountRoutes); // mounts all account routes at /api/accounts
 
 
 export default router;
