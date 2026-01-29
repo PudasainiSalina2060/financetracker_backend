@@ -3,6 +3,7 @@ import authMiddleware from "../middleware/authenticate.js";
 import { registerController, loginController, refreshController, logoutController,profileController,updateProfileController, forgotPassword,resetPassword} from "../controller/userController.js";
 import googleAuthRoutes from "./googleAuth.route.js";
 import accountRoutes from "./account.route.js";
+import categoryRoutes from "./category.route.js";
 
 const router = Router();
 
@@ -47,6 +48,8 @@ router.post("/resetpassword", resetPassword);
 //Modular Routes
 router.use("/auth", googleAuthRoutes);
 router.use("/accounts", accountRoutes); // mounts all account routes at /api/accounts
+//Routes for expense/income categories 
+router.use("/categories", categoryRoutes);     
 
 
 export default router;
