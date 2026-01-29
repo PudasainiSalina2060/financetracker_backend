@@ -4,6 +4,7 @@ import { registerController, loginController, refreshController, logoutControlle
 import googleAuthRoutes from "./googleAuth.route.js";
 import accountRoutes from "./account.route.js";
 import categoryRoutes from "./category.route.js";
+import transactionRoutes from "./transaction.route.js";
 
 const router = Router();
 
@@ -50,6 +51,7 @@ router.use("/auth", googleAuthRoutes);
 router.use("/accounts", accountRoutes); // mounts all account routes at /api/accounts
 //Routes for expense/income categories 
 router.use("/categories", categoryRoutes);     
-
+//Tracking all money coming in and going out and transaction history
+router.use("/transactions", transactionRoutes); 
 
 export default router;
