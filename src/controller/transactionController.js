@@ -97,3 +97,53 @@ export const getTransactions = async (req, res) => {
     return res.status(500).json({ message: "Failed to fetch transaction history" });
   }
 };
+
+//Deleting a transaction and reversing the balance change
+export const deleteTransactions = async( req, res)=>{
+  try{
+    const { id } = req.params; //get id from the URL (/delete/1)
+    const userId = req.user.userId;
+
+    //find the transaction to see how much it was and what type
+    const transaction = await prisma.transaction.findFirst({
+      where:{
+        transaction_id: parseInt(id),
+        //ensuring user owns this transaction
+        user_id : userId
+      }
+    });
+
+    if(!transaction) {
+      return res.status(404).json({message: "Transaction not found"});
+    }
+    const amountValue = parseFloat(transaction.amount);
+
+    //Using $transaction to delete and update balance at the same time
+    await prisma.$transaction(async(tx)=>{
+
+      //Deleting the transaction record
+      await tx.transaction.delete({
+        where : {transaction_id: parseInt(id)}
+      });
+
+      //Reversing the balance as per transaction deleted
+      if(transaction.type == 'income') {
+        //if income transaction is deleted, we subtract it from account balance
+        await tx.account.update({
+          where: {account_id : transaction.account_id },
+          data: {current_balance: { decrement: amountValue } }
+        });
+      }else{
+        //if expenses is deleted, we add money back to account
+        await tx.account.update({
+          where: { account_id: transaction.account_id},
+          data: {current_balance: { increment: amountValue}}
+        });
+      }
+    });
+    return res.status(200).json({message: "Transaction deleted and balance updated"});
+  }catch(error){
+    console.error("Delete Transaction error:",error);
+    return res.status(500).json({message: "failed to delete transaction"});
+  }
+};

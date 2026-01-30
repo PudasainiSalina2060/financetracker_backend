@@ -1,6 +1,6 @@
 import { Router } from "express";
 import authMiddleware from "../middleware/authenticate.js";
-import { addTransaction, getTransactions } from "../controller/transactionController.js";
+import { addTransaction, deleteTransactions, getTransactions } from "../controller/transactionController.js";
 
 const router = Router();
 
@@ -12,5 +12,8 @@ router.post("/add", addTransaction);
 
 // fetching the last 20 records
 router.get("/history", getTransactions);
+
+//deleting a transaction
+router.delete("/delete/:id", deleteTransactions);
 
 export default router;

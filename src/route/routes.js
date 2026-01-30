@@ -48,10 +48,11 @@ router.post("/resetpassword", resetPassword);
 
 //Modular Routes
 router.use("/auth", googleAuthRoutes);
+//Routes for bank accounts, cash, and wallets
 router.use("/accounts", accountRoutes); // mounts all account routes at /api/accounts
 //Routes for expense/income categories 
 router.use("/categories", categoryRoutes);     
-//Tracking all money coming in and going out and transaction history
+//Tracking all money coming in and going out and transaction history and deleting transaction
 router.use("/transactions", transactionRoutes); 
 
 export default router;
