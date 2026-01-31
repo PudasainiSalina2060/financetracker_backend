@@ -33,6 +33,22 @@ export const createCategory = async (req, res) => {
       return res.status(400).json({ message: "Name and Type are required to create a custom category" });
     }
 
+    //Checking if category already exist
+    const existingCategory = await prisma.category.findFirst({
+      where: {
+        name: {
+          equals: name,
+          //to make Food and food treated as the same thing
+          mode: 'insensitive' 
+        },
+        user_id: userId
+      }
+    });
+
+    if (existingCategory) {
+      return res.status(400).json({ message: "Category already exists" });
+    }
+
     // Create in DB
     const newCategory = await prisma.category.create({
       data: {
