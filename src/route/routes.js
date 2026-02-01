@@ -5,7 +5,7 @@ import googleAuthRoutes from "./googleAuth.route.js";
 import accountRoutes from "./account.route.js";
 import categoryRoutes from "./category.route.js";
 import transactionRoutes from "./transaction.route.js";
-
+import dashboardRoutes from "./dashboard.route.js";
 const router = Router();
 
 // Auth routes
@@ -54,5 +54,8 @@ router.use("/accounts", accountRoutes); // mounts all account routes at /api/acc
 router.use("/categories", categoryRoutes);     
 //Tracking all money coming in and going out and transaction history and deleting transaction
 router.use("/transactions", transactionRoutes); 
+
+// Home screen summary (Total Balance, Monthly Income/Expense)
+router.use("/dashboard", dashboardRoutes);
 
 export default router;
