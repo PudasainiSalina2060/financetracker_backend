@@ -1,3 +1,5 @@
+import prisma from "../database/dbconnection.js";
+
 export const getBalanceSummary = async (req, res) => {
   try {
     const userId = req.user.userId;
