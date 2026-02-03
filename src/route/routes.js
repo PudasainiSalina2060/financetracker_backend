@@ -6,6 +6,8 @@ import accountRoutes from "./account.route.js";
 import categoryRoutes from "./category.route.js";
 import transactionRoutes from "./transaction.route.js";
 import dashboardRoutes from "./dashboard.route.js";
+import budgetRoutes from "./budget.route.js";
+
 const router = Router();
 
 // Auth routes
@@ -57,5 +59,8 @@ router.use("/transactions", transactionRoutes);
 
 // Home screen summary (Total Balance, Monthly Income/Expense)
 router.use("/dashboard", dashboardRoutes);
+
+//Setting budget spending limits and tracking category wise budget progress
+router.use("/budgets", budgetRoutes);
 
 export default router;
