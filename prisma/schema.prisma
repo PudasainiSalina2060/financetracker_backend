@@ -184,6 +184,9 @@ model Budget {
 
   user     User     @relation(fields: [user_id], references: [user_id])
   category Category @relation(fields: [category_id], references: [category_id])
+
+//Prevents setting duplicate budgets for the same category
+  @@unique([user_id, category_id, period])
 }
 
 //------SYNC LOGS (Offline / Online Sync)------------
