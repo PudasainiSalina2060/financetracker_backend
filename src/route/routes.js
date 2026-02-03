@@ -7,6 +7,7 @@ import categoryRoutes from "./category.route.js";
 import transactionRoutes from "./transaction.route.js";
 import dashboardRoutes from "./dashboard.route.js";
 import budgetRoutes from "./budget.route.js";
+import notificationRoutes from "./notification.route.js";
 
 const router = Router();
 
@@ -62,5 +63,8 @@ router.use("/dashboard", dashboardRoutes);
 
 //Setting budget spending limits and tracking category wise budget progress
 router.use("/budgets", budgetRoutes);
+
+//View and manage alerts (80% and 100% budget notifications)
+router.use("/notifications", notificationRoutes);
 
 export default router;
