@@ -55,6 +55,10 @@ export const addTransaction = async (req, res) => {
 
       return newTransaction;
     });
+    //checking if this expense triggers an alert for budget notifications
+    if (type === 'expense') {
+      checkBudget(userId, parseInt(category_id)); 
+    }
 
     return res.status(201).json({ 
       message: "Transaction added", 
@@ -145,5 +149,66 @@ export const deleteTransactions = async( req, res)=>{
   }catch(error){
     console.error("Delete Transaction error:",error);
     return res.status(500).json({message: "failed to delete transaction"});
+  }
+};
+
+//Function to check budget limits 
+const checkBudget = async (userId, catId) => {
+  //get the budget for this category
+  const budget = await prisma.budget.findFirst({
+    where: {user_id: userId, category_id: catId }
+  });
+
+  //if no budget set, stop here
+  if (!budget) return; 
+
+  //sum current month expenses
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const total = await prisma.transaction.aggregate({
+    where: {
+      user_id: userId,
+      category_id: catId,
+      type: 'expense',
+      date: { gte: startOfMonth }
+    },
+    //_sum: Prisma aggregator for adding up all the amount values from the filtered transactions
+    _sum: { amount: true }
+  });
+
+  const spent = parseFloat(total._sum.amount || 0);
+  const limit = parseFloat(budget.limit_amount);
+  const percent = (spent / limit) * 100;
+
+  //creating notifications based on percentage
+  if (percent >= 100 && !budget.alert_sent_100) {
+    // send budget exceeded (100% alert)
+    await prisma.notification.create({
+      data: {
+        user_id: userId,
+        type: 'budget_exceeded',
+        message: `Limit exceeded for category ${catId}`,
+      }
+    });
+    // mark as sent so we don't spam
+    await prisma.budget.update({
+      where: { budget_id: budget.budget_id },
+      data: { alert_sent_100: true }
+    });
+  } 
+  else if (percent >= 80 && !budget.alert_sent_80 && !budget.alert_sent_100) {
+    //send 80% alert
+    await prisma.notification.create({
+      data: {
+        user_id: userId,
+        type: 'budget_near',
+        message: `You reached 80% of your budget for category ${catId}`,
+      }
+    });
+    await prisma.budget.update({
+      where: { budget_id: budget.budget_id },
+      data: { alert_sent_80: true }
+    });
   }
 };
