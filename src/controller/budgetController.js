@@ -4,8 +4,9 @@ import prisma from "../database/dbconnection.js";
 export const setBudget = async (req, res) => {
   try {
     const userId = req.user.userId;
+    
     //monthly limit
-    const { category_id, limit_amount } = req.body; 
+    const { category_id, limit_amount, period } = req.body; 
 
     //upsert method: it updates if found, creates if not.
     //prevents duplicates
@@ -14,7 +15,7 @@ export const setBudget = async (req, res) => {
         user_id_category_id_period: {
           user_id: userId,
           category_id: parseInt(category_id),
-          period: 'monthly' 
+          period: period || 'monthly' 
         }
       },
       //if budget exists : just updating the limit and reset alerts
@@ -23,12 +24,12 @@ export const setBudget = async (req, res) => {
         alert_sent_80: false, 
         alert_sent_100: false
       },
-      //f ibudget does not exist, creating a new one
+      //if ibudget does not exist, creating a new one
       create: {
         user_id: userId,
         category_id: parseInt(category_id),
         limit_amount: parseFloat(limit_amount),
-        period: 'monthly',
+        period: period || 'monthly',
         start_date: new Date()
       }
     });
@@ -45,18 +46,32 @@ export const setBudget = async (req, res) => {
 export const getBudgets = async (req, res) => {
   try {
     const userId = req.user.userId;
-    
+
+    //get period from frontend
+    const { period = 'monthly' } = req.query;
+    //logic for dates (weekly and monthly)
     // get date for the 1st of the current month
     const now = new Date();
-    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    let startDate;
+    //to find when tracking starts
+    if (period === 'weekly') {
+        //finds the start of the current week (Sunday)
+        startDate = new Date(now.setDate(now.getDate() - now.getDay()));
+        startDate.setHours(0, 0, 0, 0);
+    } else {
+        //finds the 1st of the current month
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    }
 
     //get all budgets the user has set
     const budgets = await prisma.budget.findMany({
-      where: { user_id: userId },
+      where: { user_id: userId,
+        period: period
+      },
       include: { category: true } // joins the category table to get the name like "Food")
     });
 
-    // Loop through each budget to calculate spending
+    //calculate progress for each individual category
     // Promise.all used: as we are running a database query inside a map loop
     const budgetProgress = await Promise.all(budgets.map(async (budget) => {
       
@@ -66,14 +81,14 @@ export const getBudgets = async (req, res) => {
           user_id: userId,
           category_id: budget.category_id,
           type: 'expense',
-          date: { gte: firstDay } 
+          date: { gte: startDate } 
         },
         _sum: { amount: true }
       });
 
       const spent = parseFloat(totalSpent._sum.amount || 0);
       const limit = parseFloat(budget.limit_amount);
-      const percentage = (spent / limit) * 100;
+      const percentage = limit > 0 ? (spent / limit) * 100 : 0;
 
       return {
         category: budget.category.name,
@@ -87,7 +102,20 @@ export const getBudgets = async (req, res) => {
       };
     }));
 
-    return res.status(200).json(budgetProgress);
+    //Calculate total budget limit for the month
+    const totalLimit = budgetProgress.reduce((sum, b) => sum + b.limit, 0);
+    const totalSpentOverall = budgetProgress.reduce((sum, b) => sum + b.spent, 0);
+
+    //return a summary for the progress ring(big circular progress bar) and categories(list of progress bars) for the list
+    return res.status(200).json({
+      summary: {
+        totalLimit,
+        totalSpentOverall,
+        remainingOverall: totalLimit - totalSpentOverall,
+        overallPercentage: totalLimit > 0 ? ((totalSpentOverall / totalLimit) * 100).toFixed(1) : "0"
+      },
+      categories: budgetProgress
+    });
 
   } catch (error) {
     console.error("Get Budget Error:", error);
