@@ -1,12 +1,15 @@
-// //Entry point of API server
-
+//Entry point of API server
 import "dotenv/config";
 
 import express from "express";
+import cors from "cors";
 import { dbconnection } from "./database/dbconnection.js";
 import router from "./route/routes.js";
 
 const app = express();
+
+// Cross-Origin requests (cors): allow requests from other apps like Flutter to access this server
+app.use(cors());
 
 //body parser middleware
 app.use(express.json());
