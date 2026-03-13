@@ -10,7 +10,7 @@ import { resetPasswordTemplate } from "../templates/resetPasswordEmail.js";
 export const registerController = async (req, res) => {
   //return res.json("smartbudget");
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password,phone } = req.body;
 
     console.log("Register request body:", req.body);
 
@@ -41,6 +41,7 @@ export const registerController = async (req, res) => {
       data: {
         name,
         email,
+        phone,
         password_hash: hashedPassword,
       },
     });
