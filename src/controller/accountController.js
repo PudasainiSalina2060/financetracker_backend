@@ -3,8 +3,10 @@ import prisma from "../database/dbconnection.js";
 //Creating a new Account (Wallet)
 export const addAccount = async (req, res) => {
   try {
+    console.log("Request Body:", req.body);
+
     const { name, type, initial_balance } = req.body;
-    const userId = req.user.userId;
+    const userId = parseInt(req.user.userId);
 
     if (!name || !type || initial_balance === undefined) {
       return res.status(400).json({ message: "Name, type, and initial balance are required" });
@@ -33,7 +35,7 @@ export const updateAccount = async (req, res) => {
   try {
     const { accountId } = req.params;
     const { name, type, current_balance } = req.body;
-    const userId = req.user.userId;
+    const userId = parseInt(req.user.userId);
     // updateMany allows us to filter by both account_id and user_id(for security)
     const updatedAccount = await prisma.account.updateMany({
       where: {
@@ -62,7 +64,7 @@ export const updateAccount = async (req, res) => {
 export const deleteAccount = async (req, res) => {
   try {
     const { accountId } = req.params;
-    const userId = req.user.userId;
+    const userId = parseInt(req.user.userId);
     const id = parseInt(accountId);
 
     // Checking the account first to make sure it belongs to the logged-in user
@@ -105,7 +107,8 @@ export const deleteAccount = async (req, res) => {
 //Getting all accounts for the logged in user
 export const getAccounts = async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = parseInt(req.user.userId);
+    console.log("Looking for accounts for User ID:", userId);
     const accounts = await prisma.account.findMany({
       where: { user_id: userId },
       orderBy: { created_at: "desc" },
