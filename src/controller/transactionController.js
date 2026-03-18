@@ -3,7 +3,7 @@ import prisma from "../database/dbconnection.js";
 // adding a new income or expense
 export const addTransaction = async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = parseInt(req.user.userId);
 
     const { account_id, category_id, type, amount, notes, date } = req.body;
 
@@ -18,7 +18,7 @@ export const addTransaction = async (req, res) => {
     // using $transaction 
     // DB operations succeed or fail together (if one step fails, nothing is saved)
     // this keeps the account balance and transaction record stay in sync
-    // 'tx' is our temporary database client for this specific task
+    // 'tx' : temporary database client for this specific task
     const result = await prisma.$transaction(async (tx) => {
       
       //saving the actual transaction record

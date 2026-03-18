@@ -2,7 +2,7 @@ import prisma from "../database/dbconnection.js";
 
 export const getBalanceSummary = async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = parseInt(req.user.userId);
 
     //get the total balance from all accounts: all time money in pocket
     const accounts = await prisma.account.aggregate({
@@ -32,9 +32,9 @@ export const getBalanceSummary = async (req, res) => {
     });
 
     return res.status(200).json({
-      totalBalance: accounts._sum.current_balance || 0,
-      totalIncome: income._sum.amount || 0,
-      totalExpense: expense._sum.amount || 0
+      totalBalance: Number(accounts._sum.current_balance || 0),
+      totalIncome: Number(income._sum.amount || 0),
+      totalExpense: Number(expense._sum.amount || 0)
     });
 
   } catch (error) {
@@ -48,7 +48,7 @@ export const getBalanceSummary = async (req, res) => {
 
 export const getCategorySpending = async(req, res) => {
   try {
-    const userId =req.user.userId;
+    const userId =parseInt(req.user.userId);
     const now =new Date();
     
     //Getting the first day of the current month to filter transactions
