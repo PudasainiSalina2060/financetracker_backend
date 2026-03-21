@@ -5,7 +5,7 @@ export const addTransaction = async (req, res) => {
   try {
     const userId = parseInt(req.user.userId);
 
-    const { account_id, category_id, type, amount, notes, date } = req.body;
+    const { account_id, category_id, type, amount, notes, date,is_recurring, frequency} = req.body;
 
     //checking if we have all required data
     if (!account_id || !category_id || !amount || !type) {
@@ -30,9 +30,29 @@ export const addTransaction = async (req, res) => {
           type: type, 
           amount: amountValue,
           date: new Date(date), 
-          notes: notes
+          notes: notes,
+          is_recurring: is_recurring || false
         }
       });
+
+      //handle recurring transaction setup
+      if (is_recurring && frequency) {
+        // calculate next date based on frequency
+        let nextRun = new Date(date);
+        if (frequency === 'daily') nextRun.setDate(nextRun.getDate() + 1);
+        if (frequency === 'weekly') nextRun.setDate(nextRun.getDate() + 7);
+        if (frequency === 'monthly') nextRun.setMonth(nextRun.getMonth() + 1);
+        
+         // save recurring transaction (links transaction and next run date)
+        await tx.recurringTransaction.create({
+          data: {
+            user_id: userId,
+            transaction_id: newTransaction.transaction_id, 
+            frequency: frequency,
+            next_run_date: nextRun
+          }
+        });
+      }
 
       //updating the current balance of the chosen account
       if (type === 'income') {
