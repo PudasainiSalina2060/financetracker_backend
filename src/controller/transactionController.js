@@ -172,6 +172,29 @@ export const deleteTransactions = async( req, res)=>{
   }
 };
 
+//Updating an existing transaction
+export const updateTransaction = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { amount, notes, category_id, date, type } = req.body;
+    
+    const updated = await prisma.transaction.update({
+      where: { transaction_id: parseInt(id) },
+      data: {
+        amount: parseFloat(amount),
+        notes: notes,
+        category_id: parseInt(category_id),
+        date: new Date(date),
+        type: type
+      }
+    });
+    
+    return res.status(200).json({ message: "Transaction updated", updated });
+  } catch (error) {
+    return res.status(500).json({ message: "Update failed" });
+  }
+};
+
 //Function to check budget limits 
 const checkBudget = async (userId, catId) => {
   //get the budget for this category
