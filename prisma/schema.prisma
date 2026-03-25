@@ -166,7 +166,7 @@ model RecurringTransaction {
   frequency       Frequency
   next_run_date   DateTime
 
-  transaction Transaction @relation(fields: [transaction_id], references: [transaction_id])
+  transaction Transaction @relation(fields: [transaction_id], references: [transaction_id], onDelete: Cascade)
   user         User        @relation(fields: [user_id], references: [user_id])
 }
 
