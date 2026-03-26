@@ -15,6 +15,8 @@ export const addTransaction = async (req, res) => {
     // converting amount to a number for calculation
     const amountValue = parseFloat(amount);
 
+    const normalizedType = type.toLowerCase();
+
     // using $transaction 
     // DB operations succeed or fail together (if one step fails, nothing is saved)
     // this keeps the account balance and transaction record stay in sync
@@ -77,7 +79,7 @@ export const addTransaction = async (req, res) => {
     });
     //checking if this expense triggers an alert for budget notifications
     if (type === 'expense') {
-      checkBudget(userId, parseInt(category_id)); 
+      await checkBudget(userId, parseInt(category_id)); 
     }
 
     return res.status(201).json({ 
@@ -87,7 +89,7 @@ export const addTransaction = async (req, res) => {
 
   } catch (error) {
     console.error("Add transaction error:", error);
-    return res.status(500).json({ message: "Failed to add transaction", error: error.message });
+    return res.status(500).json({ message: "Failed to add transaction", error: error.message, stack: error.stack });
   }
 };
 
@@ -176,22 +178,99 @@ export const deleteTransactions = async( req, res)=>{
 export const updateTransaction = async (req, res) => {
   try {
     const { id } = req.params;
-    const { amount, notes, category_id, date, type } = req.body;
-    
-    const updated = await prisma.transaction.update({
-      where: { transaction_id: parseInt(id) },
-      data: {
-        amount: parseFloat(amount),
-        notes: notes,
-        category_id: parseInt(category_id),
-        date: new Date(date),
-        type: type
-      }
+    const { amount, notes, category_id, date, type, account_id, is_recurring, frequency } = req.body;
+    const userId = req.user.userId;
+
+    const oldTransaction = await prisma.transaction.findFirst({
+      where: { transaction_id: parseInt(id), user_id: userId },
     });
+
+    if (!oldTransaction) {
+      return res.status(404).json({ message: "Transaction not found" });
+    }
+
+    const newAmount = parseFloat(amount);
+    const oldAmount = parseFloat(oldTransaction.amount);
     
-    return res.status(200).json({ message: "Transaction updated", updated });
+    //updating the transaction and returning updated record
+    const result = await prisma.$transaction(async (tx) => {
+      const updated = await tx.transaction.update({
+        where: { transaction_id: parseInt(id) },
+        data: {
+          amount: newAmount,
+          notes: notes,
+          category_id: parseInt(category_id),
+          date: new Date(date),
+          type: type,
+          account_id: parseInt(account_id),
+          is_recurring: is_recurring,
+        }
+      });
+
+      //handling recurring table during an update
+      if (is_recurring && frequency) {
+        let nextRun = new Date(date);
+        if (frequency === 'daily') nextRun.setDate(nextRun.getDate() + 1);
+        if (frequency === 'weekly') nextRun.setDate(nextRun.getDate() + 7);
+        if (frequency === 'monthly') nextRun.setMonth(nextRun.getMonth() + 1);
+
+        // upsert: update if exists, create if not
+        await tx.recurringTransaction.upsert({
+          where: { transaction_id: parseInt(id) },
+          update: { frequency: frequency, next_run_date: nextRun },
+          create: {
+            user_id: userId,
+            transaction_id: updated.transaction_id,
+            frequency: frequency,
+            next_run_date: nextRun
+          }
+        });
+      } else if (!is_recurring) {
+         // if user turned off recurring, deleting  it
+        await tx.recurringTransaction.deleteMany({
+          where: { transaction_id: parseInt(id) }
+        });
+      }
+
+      // reversing old balance
+      if (oldTransaction.type === 'income') {
+        await tx.account.update({
+          where: { account_id: oldTransaction.account_id },
+          data: { current_balance: { decrement: oldAmount } },
+        });
+      } else {
+        await tx.account.update({
+          where: { account_id: oldTransaction.account_id },
+          data: { current_balance: { increment: oldAmount } },
+        });
+      }
+
+      // applying  new balance
+      if (type === 'income') {
+        await tx.account.update({
+          where: { account_id: parseInt(account_id) },
+          data: { current_balance: { increment: newAmount } },
+        });
+      } else {
+        await tx.account.update({
+          where: { account_id: parseInt(account_id) },
+          data: { current_balance: { decrement: newAmount } },
+        });
+      }
+
+      return updated; 
+    });
+
+    // we check budgets after a successful transaction
+    if (type === 'expense') {
+      await checkBudget(userId, parseInt(category_id));
+    }
+
+    return res.status(200).json({ message: "Transaction updated", transaction: result });
+    
   } catch (error) {
-    return res.status(500).json({ message: "Update failed" });
+    console.error("Update error:", error);
+    return res.status(500).json({ message: "Update failed", error: error.message });
   }
 };
 
