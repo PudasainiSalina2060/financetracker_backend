@@ -91,6 +91,7 @@ export const getBudgets = async (req, res) => {
       const percentage = limit > 0 ? (spent / limit) * 100 : 0;
 
       return {
+        budget_id: budget.budget_id,
         category: budget.category.name,
         limit: limit,
         spent: spent,
@@ -120,5 +121,41 @@ export const getBudgets = async (req, res) => {
   } catch (error) {
     console.error("Get Budget Error:", error);
     return res.status(500).json({ message: "Error fetching budget status" });
+  }
+};
+// UPDATE budget
+export const updateBudget = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const budgetId = parseInt(req.params.id);
+    const { limit_amount, period } = req.body;
+
+    const budget = await prisma.budget.update({
+      where: { budget_id: budgetId, user_id: userId },
+      data: {
+        limit_amount: parseFloat(limit_amount),
+        period: period,
+        alert_sent_80: false, // reset alerts on update
+        alert_sent_100: false,
+      }
+    });
+    res.status(200).json({ message: "Budget updated", budget });
+  } catch (error) {
+    res.status(500).json({ message: "Error updating budget" });
+  }
+};
+
+// DELETE budget
+export const deleteBudget = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const budgetId = parseInt(req.params.id);
+
+    await prisma.budget.delete({
+      where: { budget_id: budgetId, user_id: userId } // user_id check = security
+    });
+    res.status(200).json({ message: "Budget deleted" });
+  } catch (error) {
+    res.status(500).json({ message: "Error deleting budget" });
   }
 };

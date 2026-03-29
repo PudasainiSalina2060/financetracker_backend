@@ -1,6 +1,6 @@
 import { Router } from "express";
 import authMiddleware from "../middleware/authenticate.js";
-import { setBudget, getBudgets } from "../controller/budgetController.js";
+import { setBudget, getBudgets, updateBudget, deleteBudget  } from "../controller/budgetController.js";
 
 const router = Router();
 
@@ -12,5 +12,11 @@ router.post("/set", setBudget);
 
 //fetching all budgets with spending progress
 router.get("/progress", getBudgets);
+
+//updating existing budget
+router.put("/:id", updateBudget); 
+
+//deleting the budget
+router.delete("/:id", deleteBudget);
 
 export default router;
