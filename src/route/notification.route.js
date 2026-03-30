@@ -1,6 +1,6 @@
 import { Router } from "express";
 import authMiddleware from "../middleware/authenticate.js";
-import { getNotifications, markAsRead } from "../controller/notificationController.js";
+import { getNotifications, markAsRead,  markAllAsRead, deleteNotification } from "../controller/notificationController.js";
 
 const router = Router();
 
@@ -11,5 +11,11 @@ router.get("/all", getNotifications);
 
 //Marking a specific notification as seen by user
 router.put("/read/:id", markAsRead);
+
+//Marking ALL notification as read
+router.put("/read-all", markAllAsRead);
+
+//Deleting one specific notification
+router.delete("/delete/:id", deleteNotification);
 
 export default router;

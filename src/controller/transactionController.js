@@ -281,8 +281,12 @@ const checkBudget = async (userId, catId) => {
     where: {user_id: userId, category_id: catId }
   });
 
-  //if no budget set, stop here
-  if (!budget) return; 
+  if (!budget) return;
+
+  const category = await prisma.category.findUnique({
+    where: { category_id: catId }
+  });
+  const categoryName = category?.name || 'Unknown';
 
   //sum current month expenses
   const now = new Date();
@@ -310,7 +314,7 @@ const checkBudget = async (userId, catId) => {
       data: {
         user_id: userId,
         type: 'budget_exceeded',
-        message: `Limit exceeded for category ${catId}`,
+        message: `Limit exceeded for ${categoryName}`,
       }
     });
     // mark as sent so we don't spam
@@ -324,8 +328,8 @@ const checkBudget = async (userId, catId) => {
     await prisma.notification.create({
       data: {
         user_id: userId,
-        type: 'budget_near',
-        message: `You reached 80% of your budget for category ${catId}`,
+        type: 'budget_near', 
+        message: `You reached 80% of your budget for ${categoryName}`,
       }
     });
     await prisma.budget.update({

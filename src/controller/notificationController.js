@@ -17,7 +17,7 @@ export const getNotifications = async (req, res) => {
   }
 };
 
-//marking a notification as read
+//marking a single notification as read
 export const markAsRead = async (req, res) => {
   try {
     const {id} = req.params;
@@ -28,5 +28,42 @@ export const markAsRead = async (req, res) => {
     return res.status(200).json({ message: "notification marked as read" });
   } catch (error) {
     return res.status(500).json({ message: "error updating notification" });
+  }
+};
+
+//marking All notifications as read
+export const markAllAsRead = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+ 
+    // updateMany updates every notification that belongs to this user
+    await prisma.notification.updateMany({
+      where: {
+        user_id: userId,
+        is_read: false, // only update unread ones 
+      },
+      data: { is_read: true },
+    });
+ 
+    return res.status(200).json({ message: "all notifications marked as read" });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ message: "error marking all as read" });
+  }
+};
+
+//deleting single notification
+export const deleteNotification = async (req, res) => {
+  try {
+    const { id } = req.params;
+ 
+    await prisma.notification.delete({
+      where: { notification_id: parseInt(id) },
+    });
+ 
+    return res.status(200).json({ message: "notification deleted" });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ message: "error deleting notification" });
   }
 };
