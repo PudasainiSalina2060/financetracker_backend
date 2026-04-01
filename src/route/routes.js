@@ -9,6 +9,7 @@ import dashboardRoutes from "./dashboard.route.js";
 import budgetRoutes from "./budget.route.js";
 import notificationRoutes from "./notification.route.js";
 import splitRoutes from "./split.route.js";
+import analyticsRoute from "./analytics.route.js";
 
 const router = Router();
 
@@ -69,5 +70,7 @@ router.use("/budgets", budgetRoutes);
 router.use("/notifications", notificationRoutes);
 
 router.use("/split", splitRoutes);
+
+router.use("/analytics", analyticsRoute);
 
 export default router;
