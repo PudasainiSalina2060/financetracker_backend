@@ -8,7 +8,9 @@ import {
   getGroupExpenses,
   settleShare,
   deleteGroupExpense,
-   getGroupMembers
+  getGroupMembers,
+  updateGroupExpense,
+  deleteGroup
 } from "../controller/splitController.js";
 
 const router = Router();
@@ -30,5 +32,11 @@ router.delete("/expenses/:expenseId", authMiddleware, deleteGroupExpense);
 
 // Fetch members of a group
 router.get("/groups/:groupId/members", authMiddleware, getGroupMembers);
+
+// Update group expenses
+router.put("/expenses/:expenseId", authMiddleware, updateGroupExpense);
+
+// Delete a group and its related data
+router.delete("/groups/:groupId", authMiddleware, deleteGroup);
 
 export default router;

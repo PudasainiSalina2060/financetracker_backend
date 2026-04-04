@@ -224,12 +224,14 @@ export const addGroupExpense = async (req, res) => {
 
       // Create a split share for each member
       for (const share of shares) {
+        const isPayer = parseInt(share.member_id) === parseInt(paid_by_member_id);
+
         await tx.splitShare.create({
           data: {
             group_expense_id: expense.group_expense_id,
             member_id: parseInt(share.member_id),
             amount: parseFloat(share.amount),
-            is_settled: false,
+            is_settled: isPayer,
           },
         });
       }
@@ -442,12 +444,13 @@ export const updateGroupExpense = async (req, res) => {
 
       // Save new split shares
       for (const share of shares) {
+        const isPayer = parseInt(share.member_id) === parseInt(paid_by_member_id);
         await tx.splitShare.create({
           data: {
             group_expense_id: expenseId,
             member_id: parseInt(share.member_id),
             amount: parseFloat(share.amount),
-            is_settled: false, // reset all to unsettled
+            is_settled: isPayer, // reset all to unsettled
           },
         });
       }
@@ -477,5 +480,59 @@ export const getGroupMembers = async (req, res) => {
   } catch (error) {
     console.error("Get members error:", error);
     return res.status(500).json({ message: "Failed to fetch members" });
+  }
+};
+
+//Deleting a group and all its data
+export const deleteGroup = async (req, res) => {
+  try {
+    const groupId = parseInt(req.params.groupId);
+    const userId = parseInt(req.user.userId);
+
+    // Check if group exists and belongs to this user
+    const group = await prisma.group.findFirst({
+      where: { group_id: groupId, user_id: userId },
+    });
+
+    if (!group) {
+      return res.status(404).json({ message: "Group not found" });
+    }
+
+    await prisma.$transaction(async (tx) => {
+
+      const expenses = await tx.groupExpense.findMany({
+        where: { group_id: groupId },
+        select: { group_expense_id: true },
+      });
+
+      const expenseIds = expenses.map((expense) => expense.group_expense_id);
+
+      // deleting related data first to avoid foreign key issues
+      await tx.splitShare.deleteMany({
+        where: { group_expense_id: { in: expenseIds } },
+      });
+
+      await tx.settlement.deleteMany({
+        where: { group_id: groupId },
+      });
+
+      await tx.groupExpense.deleteMany({
+        where: { group_id: groupId },
+      });
+
+      await tx.groupMember.deleteMany({
+        where: { group_id: groupId },
+      });
+
+      //deleting the group itself
+      await tx.group.delete({
+        where: { group_id: groupId },
+      });
+    });
+
+    return res.status(200).json({ message: "Group deleted sucesfully" });
+  } catch (error) {
+    console.error("Delete group error:", error);
+    return res.status(500).json({ message: "Failed to delete group" });
   }
 };
