@@ -5,14 +5,14 @@ import prisma from "../database/dbconnection.js";
 console.log("Prisma models:", Object.keys(prisma));
 
 export const createResetPasswordToken = async (userId) => {
-  //1.Generate raw token (sent to email)
+  //generate raw token (sent to email)
   //crypto.randomBytes:creates random string token
-  const rawToken = crypto.randomBytes(32).toString("hex");
+  const rawToken = crypto.randomBytes(2).toString("hex");
 
-  // 2. Hash token before saving
+  //hash token before saving
   const tokenHash = await bcrypt.hash(rawToken, 10);
 
-  // 3. Save in DB
+  //save in DB
   await prisma.passwordResetToken.create({
     data: {
       user_id: userId,

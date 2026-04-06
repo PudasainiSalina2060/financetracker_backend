@@ -288,7 +288,7 @@ export const forgotPassword = async (req, res) => {
     }
     // use auth/passwordReset.js to handle token
     const rawToken = await createResetPasswordToken(user.user_id);
-    console.log(`Password reset link (for testing): ${rawToken}`);
+    console.log(`Password reset link : ${rawToken}`);
 
     const resetLink = `${process.env.APP_URL}/reset-password?token=${rawToken}`;
 
@@ -316,16 +316,45 @@ export const forgotPassword = async (req, res) => {
 
 // Handles password reset using valid token
 export const resetPassword = async (req, res) => {
-  const { userId, token, newPassword } = req.body;
+  const { email, token, newPassword } = req.body;
+
+  // basic validation
+    if (!email || !token || !newPassword) {
+      return res.status(400).json({
+        message: "Email, token and new password are required",
+      });
+    }
+    // find user by email
+    const user = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    //user not found
+    if (!user) {
+      return res.status(404).json({
+        message: "No account found with this email",
+      });
+    }
+
+    if (!user.password_hash) {
+      return res.status(400).json({
+        message: "This account uses Google login. Password reset is not available.",
+      });
+    }
 
   // Get unused and non-expired tokens for user
   const records = await prisma.passwordResetToken.findMany({
     where: {
-      user_id: userId,
+      user_id: user.user_id,
       used: false,
       expires_at: { gt: new Date() },
     },
   });
+  if (records.length === 0) {
+      return res.status(400).json({
+        message: "No valid reset token found. Please request a new one.",
+      });
+    }
 
   let validRecord = null;
 
@@ -350,7 +379,7 @@ export const resetPassword = async (req, res) => {
 
   // Update user password
   await prisma.user.update({
-    where: { user_id: userId },
+    where: { user_id: user.user_id },
     data: { password_hash: hashedPassword },
   });
 
