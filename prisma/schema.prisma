@@ -80,6 +80,8 @@ model User {
   google_id      String?                               
   created_at     DateTime        @default(now())  
 
+  is_verified    Boolean   @default(false)
+  otp_code       String?
 
 // Relations
   sessions       UserSession[]                             // JWT sessions for login
