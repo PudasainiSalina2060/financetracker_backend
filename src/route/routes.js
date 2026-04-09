@@ -1,6 +1,6 @@
 import { Router } from "express";
 import authMiddleware from "../middleware/authenticate.js";
-import { registerController, loginController, refreshController, logoutController,profileController,updateProfileController, forgotPassword,resetPassword} from "../controller/userController.js";
+import { registerController, loginController, refreshController, logoutController,profileController,updateProfileController, forgotPassword,resetPassword, verifyOtpController } from "../controller/userController.js";
 import googleAuthRoutes from "./googleAuth.route.js";
 import accountRoutes from "./account.route.js";
 import categoryRoutes from "./category.route.js";
@@ -21,6 +21,9 @@ const router = Router();
 
 //making registered api
 router.post("/register", registerController);
+
+//verify otp while registration
+router.post("/verify-otp", verifyOtpController)
 
 router.post("/login", loginController);
 
