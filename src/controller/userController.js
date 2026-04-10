@@ -293,25 +293,41 @@ export const forgotPassword = async (req, res) => {
         message: "Password reset not available for social login",
       });
     }
-    // use auth/passwordReset.js to handle token
-    const rawToken = await createResetPasswordToken(user.user_id);
-    console.log(`Password reset link : ${rawToken}`);
+  
+    //Generate a  6 digit OTP
+    const otp = generateOTP(); // make sure generateOTP is imported
 
-    const resetLink = `${process.env.APP_URL}/reset-password?token=${rawToken}`;
+    //hash OTP before storing
+    const hashedOtp = await bcrypt.hash(otp, 10);
 
-    // send email (raw token only)
-    await sendResetPasswordEmail({
-      to: user.email,
-      subject: "Password Reset",
-      html: resetPasswordTemplate({
-        name: user.name,
-        resetLink,
-      }),
+    //save OTP to passwordResetToken table
+    await prisma.passwordResetToken.create({
+      data: {
+        user_id: user.user_id,
+        token_hash: hashedOtp,
+        used: false,
+        expires_at: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes
+      },
     });
 
+    //sending OTP via email 
+    await sendResetPasswordEmail({
+      to: user.email,
+      subject: "Password Reset OTP - SmartBudget",
+      html: `
+        <h2>Password Reset</h2>
+        <p>Hi ${user.name}, your password reset OTP is:</p>
+        <h1 style="color: teal; letter-spacing: 8px;">${otp}</h1>
+        <p>This OTP expires in 15 minutes. Do not share it with anyone.</p>
+      `,
+    });
+  
+
     //respond success
+    // return email so flutter can use it
     return res.status(200).json({
       message: "Password reset email sent",
+      email: user.email,
     });
   } catch (error) {
     console.error("Forgot password error:", error);
