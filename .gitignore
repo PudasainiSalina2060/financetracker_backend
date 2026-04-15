@@ -5,3 +5,6 @@ node_modules/
 /generated/prisma
 
 src/config/secrets/firebase-service-account.json
+
+src/config/secrets/serviceAccountKey.json
+
