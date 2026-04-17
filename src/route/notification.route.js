@@ -1,6 +1,6 @@
 import { Router } from "express";
 import authMiddleware from "../middleware/authenticate.js";
-import { getNotifications, markAsRead,  markAllAsRead, deleteNotification } from "../controller/notificationController.js";
+import { getNotifications, markAsRead,  markAllAsRead, deleteNotification, saveFcmToken } from "../controller/notificationController.js";
 
 const router = Router();
 
@@ -17,5 +17,8 @@ router.put("/read-all", markAllAsRead);
 
 //Deleting one specific notification
 router.delete("/delete/:id", deleteNotification);
+
+//Save users FCM/device token for push notifications
+router.post("/save-token", saveFcmToken);
 
 export default router;

@@ -67,3 +67,21 @@ export const deleteNotification = async (req, res) => {
     return res.status(500).json({ message: "error deleting notification" });
   }
 };
+
+//saving FCM token of users phone in database for push notifications
+export const saveFcmToken = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { fcm_token } = req.body;
+
+    await prisma.user.update({
+      where: { user_id: userId },
+      data: { fcm_token: fcm_token },
+    });
+
+    return res.status(200).json({ message: "token saved" });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ message: "error saving token" });
+  }
+};
